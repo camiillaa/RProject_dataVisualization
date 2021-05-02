@@ -1,0 +1,199 @@
+# PROJEKT ZALICZENIOWY 
+# KAMILA SOCKO
+# nr albumu 402770
+# INZYNIERIA I ANALIZA DANYCH 
+
+# ZALADOWANIE WYKORZYSTYWANYCH PAKIETOW 
+```{r}
+library(dplyr)
+library(tidyverse)
+library(graphics)
+library(magrittr)
+library(lattice)
+library(latticeExtra)
+library(aplpack)
+library(plotly)
+library(ggplot2)
+```
+
+# WCZYTANIE DANYCH
+
+```{r}
+
+myData<-read.csv("Socko_dane_surowe.csv", skip=1, header=FALSE, col.names=c("Period", "Sex", "Age", "Count"))
+myData
+
+exists('myData') && is.data.frame(get('myData')) 
+any(is.na(myData))
+summary(myData)
+str(myData)
+typeof(myData)
+length(myData)
+class(myData)
+head(myData)
+tail(myData)
+write.csv(myData, "Socko_dane_przeksztalcone.csv")
+
+```
+
+#PRACA Z DANYMI
+
+```{r}
+male_data<-myData%>%filter(Sex=="Male")
+female_data<-myData%>% filter(Sex=="Female")
+total_data<-myData%>% filter(Sex=="Total")
+
+print("PODSUMOWNANIE DLA KOBIET: ")
+summary(male_data)
+print("PODSUMOWANIE DLA MEZCZYZN")
+summary(female_data)
+print("DLA KAZDEJ Z PLCI:")
+summary(total_data)
+
+myData %>% filter(Period==2019 & Sex!="Total") %>% filter(Count<100) 
+
+select(myData, ends_with("od"))
+
+select(myData, Age, everything())
+
+rename(myData, Gender = Sex)
+
+
+myData %>%
+  filter(Age!="100 and over" & Age!="Total" & Sex!= "Total" & Age!="Infant")%>%
+  select(Period, Age, Count) %>%
+  group_by(Count) %>% arrange(Count)
+
+myData %>%
+  filter(Sex=="Total" & Age!="Total") %>%
+  filter(Period==2019) %>% arrange(desc(Count))
+
+myData %>%
+  filter(Age=="Infant")%>% mutate(Age="Niemowle")
+
+myData %>% filter(Period==2008 & Sex=="Female") %>%
+  filter(Age!="Total")%>%
+  slice_max(Count)
+
+myData %>% filter(Period==2010 & Sex=="Male") %>%
+  filter(Age!="Total")%>%
+  slice_min(Count)
+
+
+specificCount<-myData %>%
+  filter(Age!="100 and over" & Age!="Total" & Age!="Infant")%>%
+  filter(Period==2019 & Sex=="Female") %>% select(Count, Age)
+specificCount
+
+srednia=round(mean(specificCount[1:20,1]), digits = 1)
+srednia
+summary(specificCount)
+
+```
+
+#WIZUALIZACJE
+
+# lattice + latticeExtra
+```{r}
+period_count<-myData %>%
+  filter(Age=="Total" & Sex=="Total") %>% select(Period,Count) %>% group_by(Count)
+period_count
+
+dotplot(Count ~ Period, period_count, group = Period,
+ main = "Ilosc zgonow w danym roku",
+ xlab = "Rok",
+ ylab = "Ilosc zgonow",
+ auto.key = list(space = "right", title = "Lata", cex.title=1.2),
+ par.settings=ggplot2like(),
+ lattice.options = ggplot2like.opts(),
+ cex=1.5)
+ 
+```
+
+#graphics+aplpack
+```{r}
+total_count_period<-myData %>%
+  filter(Age=="Infant" & Sex=="Total") %>% select(Period, Count) %>% group_by(Count)
+total_count_period
+par(mfrow=c(1,3))
+plot(total_count_period, col="orange",type="b",pch=3)
+bagplot(total_count_period$Period,total_count_period$Count,cex=3, xlab="Okres", ylab="Ilosc")
+sunflowerplot(total_count_period, col="red", cex=3)
+mtext("Ilosc zgonow u niemowlat w danym roku, na trzech innych wykresach", outer=TRUE,  cex=0.9, line=-1.6)
+
+```
+
+#ggplot2
+```{r}
+count_sex<-myData%>% filter(Age=="Total" & Sex!="Total" & Period==2019) %>% select(Count, Sex)
+count_sex
+
+ggplot(count_sex, aes(x="", y=Count, fill=Sex)) + geom_bar(width = 1, stat = "identity")+coord_polar("y", start=0)+
+  scale_fill_brewer(palette="Set3")+theme_minimal(base_family = "mono", base_size = 12) +
+  theme(
+  panel.background = element_rect(fill = "#CCCCCC",
+                                colour = "yellow",
+                                size = 3, linetype = "solid"),
+  axis.title.x = element_blank(),
+  axis.title.y = element_blank(),
+  axis.ticks = element_blank(),
+  plot.title=element_text(size=14, face="bold", hjust = 0.5),
+  plot.subtitle = element_text(size=9, hjust=0.5)
+  ) + ggtitle("Ilosc zgonow u kobiet i mezczyzn", subtitle = "ZESTAWIENIE Z ROKU 2019")
+
+
+```
+
+#plotly
+```{r}
+countAge<-myData %>%
+  filter(Age!="100 and over" & Age!="Total" & Age!="Infant")%>%
+  filter(Period==2017 & Sex=="Total") %>% group_by(Age)%>% summarise(srednia=mean(Count))
+countAge
+
+countAge%>%
+plot_ly(x=~Age, y=~srednia, color=~srednia) %>%
+add_markers(marker=list(opacity=0.5), showlegend=FALSE) %>%
+layout(xaxis = list(title="Wiek", showgrid=TRUE),
+yaxis = list(title="Ilosc zgonow", showgrid=FALSE),
+title = "Srednia ilosc zgonow w zaleznosci od wieku w 2017 roku", paper_bgcolor="#CCFFFF", plot_bgcolor="mintcream")
+
+
+```
+
+#ggplot2
+
+```{r}
+
+higher_age_total<-myData %>%
+  filter(Age=="100 and over" & Sex=="Total")%>%
+  select(Period,Count)
+higher_age_total
+
+ggplot(higher_age_total, aes(x=Period, y=Count, group=Count))+geom_point()+theme_minimal(base_family = "serif", base_size = 14) +
+  theme(
+  panel.background = element_rect(fill = "azure3",
+                                colour = "deepskyblue3",
+                                size = 3, linetype = "dashed"),
+  plot.title=element_text(size=14, face="bold", hjust = 0.5),
+  plot.subtitle = element_text(size=8, hjust=0.5)
+  ) + ggtitle("Ilosc zgonow w wieku 100 lat lub wiecej w poszczegolnych latach", subtitle = "ZESTAWIENIE Z KILKU LAT") + xlab("Rok")+ylab("Ilosc zgonow")
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
